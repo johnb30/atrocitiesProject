@@ -35,54 +35,40 @@ def scrape_func(address, website, database):
             'ebola', 'cholera', 'murder-suicide', 'hit-and-run', 
             'half-staff')
     for result in results:
+
+        connection = MongoClient()
+        db = connection.atrocities_data
+        collection = db[website] 
+
         toWrite = (result.title + ' ' 
                 + pattern.web.plaintext(result.description))
+
         if (any([term in toWrite.lower() for term in keep]) and 
                 all([word not in toWrite.lower() for word in ignore])):
             if website == 'nyt':
-                try:
                     temp = pages_scrape.nyt_scrape(result.url, result.title)
-                    mongo_connection.add_entry(database, temp, result.url, result.date,
-                        website)
-                except IndexError:
-                    pass
+                    mongo_connection.add_entry(collection, temp, result.url, result.date)
             if website == 'bbc':
-                try:
                     temp = pages_scrape.bbc_scrape(result.url, result.title,
                         result.date)
-                    mongo_connection.add_entry(database, temp, result.url, result.date,
-                        website)
-                except IndexError:
-                    pass
+                    mongo_connection.add_entry(collection, temp, result.url, result.date)
             if website == 'reuters':
-                try:
                     temp = pages_scrape.reuters_scrape(result.url, result.title,
                         result.date)
-                    mongo_connection.add_entry(database, temp, result.url, result.date,
-                        website)
-                except IndexError:
-                    pass
+                    mongo_connection.add_entry(collection, temp, result.url, result.date)
             if website == 'ap':
-                try:
                     temp = pages_scrape.ap_scrape(result.url, result.title,
                         result.date)
-                    mongo_connection.add_entry(database, temp, result.url, result.date,
-                        website)
-                except IndexError:
-                    pass
+                    mongo_connection.add_entry(collection, temp, result.url, result.date)
             if website == 'upi':
-                try:
                     temp = pages_scrape.upi_scrape(result.url, result.title,
                         result.date)
-                    mongo_connection.add_entry(database, temp, result.url, result.date,
-                        website)
-                except IndexError:
-                    pass
+                    mongo_connection.add_entry(collection, temp, result.url, result.date)
             if website == 'google':
                 temp = (result.title + '\n' + result.date + '\n\n' +
                     pattern.web.plaintext(result.description))
-                mongo_connection.add_entry(database, temp, result.url, result.date,
-                    website)
+                mongo_connection.add_entry(collection, temp, result.url, result.date)
+    print 'Scraped once!'
 
 #def parallel_func(siteList, database, n_cores = -1):
 #    """
@@ -99,10 +85,9 @@ def scrape_func(address, website, database):
 #    Parallel(n_jobs=n_cores)(delayed(scrape_func)(siteList[website], website,
 #        database) for website in siteList)
 
-def call_scrape_func(siteList, database):
+def call_scrape_func(siteList):
     for website in siteList:
-        scrape_func(siteList[website], website, database)
-    print 'Scraped once!'
+        scrape_func(siteList[website], website)
 
 if __name__ == '__main__':
     print 'Running...'
@@ -117,11 +102,8 @@ if __name__ == '__main__':
 
     logging.basicConfig()
     
-    connection = MongoClient()
-    db = connection.atrocities_data
-
     sched = Scheduler()
-    sched.add_interval_job(call_scrape_func, args = [to_scrape, db], hours=1)
+    sched.add_interval_job(call_scrape_func, args = [to_scrape], hours=1)
     sched.start()
     while True:
         time.sleep(10)

@@ -1,5 +1,4 @@
-def add_entry(database, text, url, date, website):
-    collection = database[website]
+def add_entry(collection, text, url, date, website):
     toInsert = {"url" : url, 
                 "source" : website, 
                 "date" : date, 
@@ -8,3 +7,4 @@ def add_entry(database, text, url, date, website):
         pass
     else:
         object_id = collection.insert(toInsert)
+        print object_id
