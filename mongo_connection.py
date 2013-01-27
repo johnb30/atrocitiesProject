@@ -7,4 +7,4 @@ def add_entry(collection, text, url, date, website):
         pass
     else:
         object_id = collection.insert(toInsert)
-        print object_id
+        return object_id

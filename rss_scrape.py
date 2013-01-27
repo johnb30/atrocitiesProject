@@ -13,7 +13,7 @@ import logging
 # If 'keep' is more than one word, change the 'all()' to 'any() and all()' since
 # the desired behavior is to have any of the keep and none of the ignore.
 
-def scrape_func(address, website, database):
+def scrape_func(address, website):
     """
     Function to scrape various RSS feeds. Uses the 'keep' and 'ignore' iterables
     to define which words should be used in the text search.
@@ -28,47 +28,83 @@ def scrape_func(address, website, database):
     database : name of the MongoDB database that contains the collections.
     String? pymongo connection object?
     """
+    connection = MongoClient()
+    db = connection.atrocities_data
+    collection = db[website] 
+
     results = pattern.web.Newsfeed().search(address, count=100)
     keep = ('kill', 'bomb', 'die', 'attack', 'shoot', 'fight')
     ignore = ('crash', 'accident', 'funeral', 'flood', 'house fire', 
             'apartment fire', 'lightning', 'mine blast', 'lion', 'disease',
             'ebola', 'cholera', 'murder-suicide', 'hit-and-run', 
-            'half-staff')
+            'half-staff', 'video:', 'blog')
+    print 'There are %d results from %s \n' % (len(results), website)
     for result in results:
-
-        connection = MongoClient()
-        db = connection.atrocities_data
-        collection = db[website] 
-
         toWrite = (result.title + ' ' 
                 + pattern.web.plaintext(result.description))
 
         if (any([term in toWrite.lower() for term in keep]) and 
                 all([word not in toWrite.lower() for word in ignore])):
             if website == 'nyt':
-                    temp = pages_scrape.nyt_scrape(result.url, result.title)
-                    mongo_connection.add_entry(collection, temp, result.url, result.date)
+                temp = pages_scrape.nyt_scrape(result.url, result.title)
+                entry_id = mongo_connection.add_entry(collection, temp, 
+                        result.url, result.date, website)
+                if entry_id:
+                    print 'Added entry from %s with id %s \n' % (result.url,
+                            str(entry_id))
+                else:
+                    print 'Result from %s already in database \n' % (result.url)
             if website == 'bbc':
-                    temp = pages_scrape.bbc_scrape(result.url, result.title,
-                        result.date)
-                    mongo_connection.add_entry(collection, temp, result.url, result.date)
+                temp = pages_scrape.bbc_scrape(result.url, result.title,
+                            result.date)
+                entry_id = mongo_connection.add_entry(collection, temp, 
+                        result.url, result.date, website)
+                if entry_id:
+                    print 'Added entry from %s with id %s \n' % (result.url,
+                            str(entry_id))
+                else:
+                    print 'Result from %s already in database \n' % (result.url)
             if website == 'reuters':
-                    temp = pages_scrape.reuters_scrape(result.url, result.title,
+                temp = pages_scrape.reuters_scrape(result.url, result.title,
                         result.date)
-                    mongo_connection.add_entry(collection, temp, result.url, result.date)
+                entry_id = mongo_connection.add_entry(collection, temp, 
+                        result.url, result.date, website)
+                if entry_id:
+                    print 'Added entry from %s with id %s \n' % (result.url,
+                            str(entry_id))
+                else:
+                    print 'Result from %s already in database \n' % (result.url)
             if website == 'ap':
-                    temp = pages_scrape.ap_scrape(result.url, result.title,
+                temp = pages_scrape.ap_scrape(result.url, result.title,
                         result.date)
-                    mongo_connection.add_entry(collection, temp, result.url, result.date)
+                entry_id = mongo_connection.add_entry(collection, temp, 
+                        result.url, result.date, website)
+                if entry_id:
+                    print 'Added entry from %s with id %s \n' % (result.url,
+                            str(entry_id))
+                else:
+                    print 'Result from %s already in database \n' % (result.url)
             if website == 'upi':
-                    temp = pages_scrape.upi_scrape(result.url, result.title,
+                temp = pages_scrape.upi_scrape(result.url, result.title,
                         result.date)
-                    mongo_connection.add_entry(collection, temp, result.url, result.date)
+                entry_id = mongo_connection.add_entry(collection, temp, 
+                        result.url, result.date, website)
+                if entry_id:
+                    print 'Added entry from %s with id %s \n' % (result.url,
+                            str(entry_id))
+                else:
+                    print 'Result from %s already in database \n' % (result.url)
             if website == 'google':
                 temp = (result.title + '\n' + result.date + '\n\n' +
                     pattern.web.plaintext(result.description))
-                mongo_connection.add_entry(collection, temp, result.url, result.date)
-    print 'Scraped once!'
+                entry_id = mongo_connection.add_entry(collection, temp, 
+                        result.url, result.date, website)
+                if entry_id:
+                    print 'Added entry from %s with id %s \n' % (result.url,
+                            str(entry_id))
+                else:
+                    print 'Result from %s already in database \n' % (result.url)
+    print '+' * 70 + '\nScraped %s once!\n' % (website)
 
 #def parallel_func(siteList, database, n_cores = -1):
 #    """
@@ -99,6 +135,7 @@ if __name__ == '__main__':
             'ap' : 'http://hosted2.ap.org/atom/APDEFAULT/cae69a7523db45408eeb2b3a98c0c9c5',
             'upi' : 'http://rss.upi.com/news/emerging_threats.rss'
             }
+    #call_scrape_func(to_scrape)
 
     logging.basicConfig()
     
