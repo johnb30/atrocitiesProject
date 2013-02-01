@@ -6,7 +6,9 @@ def nyt_scrape(url, title):
         page = requests.get(url)
         doc = lh.fromstring(page.content)
         text = title + '\n\n'
-        text += doc.xpath("//div[@class='columnGroup first']")[0].text_content()
+        content = doc.xpath("//div[@class='columnGroup first']//p[@itemprop='articleBody']")
+        for paragraph in content:
+            text += paragraph.text_content() + '\n\n'
         return text
     except IndexError:
         pass
@@ -62,5 +64,19 @@ def upi_scrape(url, title, date):
         return text
     except IndexError:
         pass
+
+def xinhua_scrape(url, title, date):
+    try:
+        text = title + '\n' + date + '\n'
+        page = requests.get(url)
+        doc = lh.fromstring(page.content)
+        content = doc.xpath('//div[@id="Content"]//p')
+        for paragraph in content:
+            text += paragraph.text_content()
+        text = text.replace('\n\n', '\n')
+        return text
+    except IndexError:
+        pass
+        
 
 

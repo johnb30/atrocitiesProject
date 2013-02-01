@@ -36,7 +36,8 @@ def scrape_func(address, website):
     log = open('log_file.txt', 'a')
 
     results = pattern.web.Newsfeed().search(address, count=100, cached=False)
-    keep = ('kill', 'bomb', 'die', 'attack', 'shoot', 'fight')
+    keep = ('kill', 'bomb', 'die', 'attack', 'shoot', 'fight', 'slain',
+    'perished')
     ignore = ('crash', 'accident', 'funeral', 'flood', 'house fire', 
             'apartment fire', 'lightning', 'mine blast', 'lion', 'disease',
             'ebola', 'cholera', 'murder-suicide', 'hit-and-run', 
@@ -44,7 +45,7 @@ def scrape_func(address, website):
     log1 = 'There are %d results from %s \n' % (len(results), website)
     log.write(log1)
     for result in results:
-        toWrite = (result.title + ' ' 
+        toWrite = (pattern.web.plaintext(result.title) + ' ' 
                 + pattern.web.plaintext(result.description))
 
         if (any([term in toWrite.lower() for term in keep]) and 
@@ -108,6 +109,18 @@ def scrape_func(address, website):
                 else:
                     log2 = 'Result from %s already in database \n' % (result.url)
                     log.write(log2)
+            if website == 'xinhua':
+                temp = pages_scrape.upi_scrape(pattern.web.plaintext(result.url),
+                        result.title, result.date)
+                entry_id = mongo_connection.add_entry(collection, temp, 
+                        result.url, result.date, website)
+                if entry_id:
+                    log2 = 'Added entry from %s with id %s \n' % (result.url,
+                            str(entry_id))
+                    log.write(log2)
+                else:
+                    log2 = 'Result from %s already in database \n' % (result.url)
+                    log.write(log2)
             if website == 'google':
                 temp = (result.title + '\n' + result.date + '\n\n' +
                     pattern.web.plaintext(result.description))
@@ -155,6 +168,7 @@ if __name__ == '__main__':
             'bbc' : 'http://feeds.bbci.co.uk/news/world/rss.xml',
             'ap' : 'http://hosted2.ap.org/atom/APDEFAULT/cae69a7523db45408eeb2b3a98c0c9c5',
             'upi' : 'http://rss.upi.com/news/emerging_threats.rss'
+            'xinhua' : 'http://www.xinhuanet.com/english/rss/worldrss.xml'
             }
     #call_scrape_func(to_scrape)
 
