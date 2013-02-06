@@ -34,7 +34,6 @@ def scrape_func(address, website):
     collection = db[website] 
 
     log = open('log_file.txt', 'a')
-
     results = pattern.web.Newsfeed().search(address, count=100, cached=False)
     keep = ('kill', 'bomb', 'die', 'attack', 'shoot', 'fight', 'slain',
     'perished')
@@ -110,8 +109,10 @@ def scrape_func(address, website):
                     log2 = 'Result from %s already in database \n' % (result.url)
                     log.write(log2)
             if website == 'xinhua':
-                temp = pages_scrape.upi_scrape(pattern.web.plaintext(result.url),
-                        result.title, result.date)
+                page_url = result.url.encode('ascii')
+                page_url = page_url.replace('"', '')
+                temp = pages_scrape.xinhua_scrape(page_url,result.title, 
+                        result.date)
                 entry_id = mongo_connection.add_entry(collection, temp, 
                         result.url, result.date, website)
                 if entry_id:
@@ -167,10 +168,11 @@ if __name__ == '__main__':
             'reuters' : 'http://feeds.reuters.com/Reuters/worldNews',
             'bbc' : 'http://feeds.bbci.co.uk/news/world/rss.xml',
             'ap' : 'http://hosted2.ap.org/atom/APDEFAULT/cae69a7523db45408eeb2b3a98c0c9c5',
-            'upi' : 'http://rss.upi.com/news/emerging_threats.rss'
+            'upi' : 'http://rss.upi.com/news/emerging_threats.rss',
             'xinhua' : 'http://www.xinhuanet.com/english/rss/worldrss.xml'
             }
-    #call_scrape_func(to_scrape)
+    #Line to aid in debugging
+    call_scrape_func(to_scrape)
 
     logging.basicConfig()
     

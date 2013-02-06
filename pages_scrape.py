@@ -1,6 +1,7 @@
 import requests
 import lxml.html as lh
 
+
 def nyt_scrape(url, title):
     try:
         page = requests.get(url)
@@ -13,6 +14,7 @@ def nyt_scrape(url, title):
     except IndexError:
         pass
 
+
 def bbc_scrape(url, title, date):
     try:
         page = requests.get(url)
@@ -24,6 +26,7 @@ def bbc_scrape(url, title, date):
         return text
     except IndexError:
         pass
+
 
 def reuters_scrape(url, title, date):
     try:
@@ -41,6 +44,7 @@ def reuters_scrape(url, title, date):
     except IndexError:
         pass
 
+
 def ap_scrape(url, title, date):
     try:
         page = requests.get(url)
@@ -52,6 +56,7 @@ def ap_scrape(url, title, date):
         return text
     except IndexError:
         pass
+
 
 def upi_scrape(url, title, date):
     try:
@@ -65,6 +70,7 @@ def upi_scrape(url, title, date):
     except IndexError:
         pass
 
+
 def xinhua_scrape(url, title, date):
     try:
         text = title + '\n' + date + '\n'
@@ -77,6 +83,3 @@ def xinhua_scrape(url, title, date):
         return text
     except IndexError:
         pass
-        
-
-
