@@ -1,6 +1,8 @@
 from apscheduler.scheduler import Scheduler
 #from joblib import Parallel, delayed
 from pymongo import MongoClient
+from nltk import word_tokenize
+import nltk.stem.porter as p
 import pattern.web
 import datetime
 import time
@@ -11,14 +13,14 @@ import logging
 # In the scrape_func, if 'keep' will only have 1 word make it a list, else a
 # tuple.
 
-# If 'keep' is more than one word, change the 'all()' to 'any() and all()' since
-# the desired behavior is to have any of the keep and none of the ignore.
+# If 'keep' is more than one word, change the 'all()' to 'any() and all()'
+#since the desired behavior is to have any of the keep and none of the ignore.
 
 
 def scrape_func(address, website):
     """
-    Function to scrape various RSS feeds. Uses the 'keep' and 'ignore' iterables
-    to define which words should be used in the text search.
+    Function to scrape various RSS feeds. Uses the 'keep' and 'ignore'
+    iterables to define which words should be used in the text search.
 
     Inputs
     ------
@@ -39,72 +41,79 @@ def scrape_func(address, website):
     keep = ('kill', 'bomb', 'die', 'attack', 'shoot', 'fight', 'slain',
             'perished')
     ignore = ('crash', 'accident', 'funeral', 'flood', 'house fire',
-                'apartment fire', 'lightning', 'mine blast', 'lion', 'disease',
-                'ebola', 'cholera', 'murder-suicide', 'hit-and-run',
-                'half-staff', 'video:', 'blog')
+              'apartment fire', 'lightning', 'mine blast', 'lion', 'disease',
+              'ebola', 'cholera', 'murder-suicide', 'hit-and-run',
+              'half-staff', 'video:', 'blog')
     log1 = 'There are %d results from %s \n' % (len(results), website)
     log.write(log1)
     for result in results:
         toWrite = (pattern.web.plaintext(result.title) + ' '
-                    + pattern.web.plaintext(result.description))
-
-        if (any([term in toWrite.lower() for term in keep]) and
-                all([word not in toWrite.lower() for word in ignore])):
+                   + pattern.web.plaintext(result.description))
+        toWrite_toks = word_tokenize(toWrite.lower())
+        to_write_stem = [p.PorterStemmer().stem(word) for word in toWrite_toks]
+        if (any([term in to_write_stem for term in keep]) and
+                all([word not in to_write_stem for word in ignore])):
             if website == 'nyt':
-                temp = pages_scrape.nyt_scrape(result.url, result.title)
+                temp = pages_scrape.scrape(result.url, result.title)
                 entry_id = mongo_connection.add_entry(collection, temp,
-                                    result.url, result.date, website)
+                                                      result.title, result.url,
+                                                      result.date, website)
                 if entry_id:
                     log2 = 'Added entry from %s with id %s \n' % (result.url,
-                            str(entry_id))
+                                                                  str(entry_id)
+                                                                  )
                     log.write(log2)
                 else:
                     log2 = 'Result from %s already in database \n' % (result.url)
                     log.write(log2)
             if website == 'bbc':
-                temp = pages_scrape.bbc_scrape(result.url, result.title,
-                            result.date)
+                temp = pages_scrape.scrape(result.url, result.title)
                 entry_id = mongo_connection.add_entry(collection, temp,
-                        result.url, result.date, website)
+                                                      result.title, result.url,
+                                                      result.date, website)
                 if entry_id:
                     log2 = 'Added entry from %s with id %s \n' % (result.url,
-                            str(entry_id))
+                                                                  str(entry_id)
+                                                                  )
                     log.write(log2)
                 else:
                     log2 = 'Result from %s already in database \n' % (result.url)
                     log.write(log2)
             if website == 'reuters':
-                temp = pages_scrape.reuters_scrape(result.url, result.title,
-                        result.date)
+                temp = pages_scrape.scrape(result.url, result.title)
                 entry_id = mongo_connection.add_entry(collection, temp,
-                        result.url, result.date, website)
+                                                      result.title, result.url,
+                                                      result.date, website)
                 if entry_id:
                     log2 = 'Added entry from %s with id %s \n' % (result.url,
-                            str(entry_id))
+                                                                  str(entry_id)
+                                                                  )
                     log.write(log2)
                 else:
                     log2 = 'Result from %s already in database \n' % (result.url)
                     log.write(log2)
             if website == 'ap':
-                temp = pages_scrape.ap_scrape(result.url, result.title,
-                        result.date)
+                temp = pages_scrape.scrape(result.url, result.title)
                 entry_id = mongo_connection.add_entry(collection, temp,
-                        result.url, result.date, website)
+                                                      result.title, result.url,
+                                                      result.date, website)
                 if entry_id:
                     log2 = 'Added entry from %s with id %s \n' % (result.url,
-                            str(entry_id))
+                                                                  str(entry_id)
+                                                                  )
                     log.write(log2)
                 else:
                     log2 = 'Result from %s already in database \n' % (result.url)
                     log.write(log2)
             if website == 'upi':
-                temp = pages_scrape.upi_scrape(result.url, result.title,
-                        result.date)
+                temp = pages_scrape.scrape(result.url, result.title)
                 entry_id = mongo_connection.add_entry(collection, temp,
-                        result.url, result.date, website)
+                                                      result.title, result.url,
+                                                      result.date, website)
                 if entry_id:
                     log2 = 'Added entry from %s with id %s \n' % (result.url,
-                            str(entry_id))
+                                                                  str(entry_id)
+                                                                  )
                     log.write(log2)
                 else:
                     log2 = 'Result from %s already in database \n' % (result.url)
@@ -112,32 +121,37 @@ def scrape_func(address, website):
             if website == 'xinhua':
                 page_url = result.url.encode('ascii')
                 page_url = page_url.replace('"', '')
-                temp = pages_scrape.xinhua_scrape(page_url, result.title,
-                        result.date)
+                temp = pages_scrape.scrape(page_url, result.title)
                 entry_id = mongo_connection.add_entry(collection, temp,
-                        result.url, result.date, website)
+                                                      result.title, result.url,
+                                                      result.date, website)
                 if entry_id:
                     log2 = 'Added entry from %s with id %s \n' % (result.url,
-                            str(entry_id))
+                                                                  str(entry_id)
+                                                                  )
                     log.write(log2)
                 else:
                     log2 = 'Result from %s already in database \n' % (result.url)
                     log.write(log2)
             if website == 'google':
-                temp = (result.title + '\n' + result.date + '\n\n' +
-                    pattern.web.plaintext(result.description))
+#                temp = (result.title + '\n' + result.date + '\n\n' +
+#                    pattern.web.plaintext(result.description))
+                temp = pages_scrape.scrape(result.url, result.title)
                 entry_id = mongo_connection.add_entry(collection, temp,
-                        result.url, result.date, website)
+                                                      result.title, result.url,
+                                                      result.date, website)
                 if entry_id:
                     log2 = 'Added entry from %s with id %s \n' % (result.url,
-                            str(entry_id))
+                                                                  str(entry_id)
+                                                                  )
                     log.write(log2)
                 else:
                     log2 = 'Result from %s already in database \n' % (result.url)
                     log.write(log2)
     interupt = '+' * 70
     log3 = '%s\nScrape %s once at %s!\n%s\n' % (interupt, website,
-            datetime.datetime.now(), interupt)
+                                                datetime.datetime.now(),
+                                                interupt)
     log.write(log3)
     log.close()
 
@@ -164,23 +178,22 @@ def call_scrape_func(siteList):
 
 if __name__ == '__main__':
     print 'Running...'
-    to_scrape = {
-            'google': 'https://news.google.com/?output=rss',
-            'nyt': 'http://rss.nytimes.com/services/xml/rss/nyt/World.xml',
-            'reuters': 'http://feeds.reuters.com/Reuters/worldNews',
-            'bbc': 'http://feeds.bbci.co.uk/news/world/rss.xml',
-            'ap': 'http://hosted2.ap.org/atom/APDEFAULT/cae69a7523db45408eeb2b3a98c0c9c5',
-            'upi': 'http://rss.upi.com/news/emerging_threats.rss',
-            'xinhua': 'http://www.xinhuanet.com/english/rss/worldrss.xml'
-                }
+    to_scrape = {'google': 'https://news.google.com/?output=rss',
+                 'nyt': 'http://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+                 'reuters': 'http://feeds.reuters.com/Reuters/worldNews',
+                 'bbc': 'http://feeds.bbci.co.uk/news/world/rss.xml',
+                 'ap': 'http://hosted2.ap.org/atom/APDEFAULT/cae69a7523db45408eeb2b3a98c0c9c5',
+                 'upi': 'http://rss.upi.com/news/emerging_threats.rss',
+                 'xinhua': 'http://www.xinhuanet.com/english/rss/worldrss.xml'
+                 }
     #Line to aid in debugging
     call_scrape_func(to_scrape)
 
-    logging.basicConfig()
-
-    sched = Scheduler()
-    sched.add_interval_job(call_scrape_func, args=[to_scrape], hours=1)
-    sched.start()
-    while True:
-        time.sleep(10)
-    sched.shutdown()
+#    logging.basicConfig()
+#
+#    sched = Scheduler()
+#    sched.add_interval_job(call_scrape_func, args=[to_scrape], hours=1)
+#    sched.start()
+#    while True:
+#        time.sleep(10)
+#    sched.shutdown()
