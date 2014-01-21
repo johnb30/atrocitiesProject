@@ -1,9 +1,12 @@
-def add_entry(collection, text, title, url, date, website):
+def add_entry(collection, text, stanford, title, url, date, website):
     toInsert = {"url": url,
                 "title": title,
                 "source": website,
                 "date": date,
-                "content": text}
+                "content": text,
+                "stanford": 1,
+                "stanford_parse": stanford,
+               }
     if collection.find_one({"url": url}):
         pass
     else:

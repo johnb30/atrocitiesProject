@@ -1,14 +1,14 @@
 from apscheduler.scheduler import Scheduler
 #from joblib import Parallel, delayed
 from pymongo import MongoClient
-from nltk import word_tokenize
-import nltk.stem.porter as p
-import pattern.web
-import datetime
+from corenlp import StanfordCoreNLP
 import time
+import logging
+import datetime
+import pattern.web
+import nltk.data
 import pages_scrape
 import mongo_connection
-import logging
 
 # In the scrape_func, if 'keep' will only have 1 word make it a list, else a
 # tuple.
@@ -36,139 +36,136 @@ def scrape_func(address, website):
     db = connection.atrocities_data
     collection = db[website]
 
+    sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
+
+    corenlp_dir = 'stanford-corenlp/'
+    corenlp_parse = StanfordCoreNLP(corenlp_dir)
+
     log = open('log_file.txt', 'a')
     results = pattern.web.Newsfeed().search(address, count=100, cached=False)
-    keep = ('kill', 'bomb', 'die', 'attack', 'shoot', 'fight', 'slain',
-            'perished')
-    ignore = ('crash', 'accident', 'funeral', 'flood', 'house fire',
-              'apartment fire', 'lightning', 'mine blast', 'lion', 'disease',
-              'ebola', 'cholera', 'murder-suicide', 'hit-and-run',
-              'half-staff', 'video:', 'blog')
     log1 = 'There are %d results from %s \n' % (len(results), website)
     log.write(log1)
     for result in results:
-        toWrite = (pattern.web.plaintext(result.title) + ' '
-                   + pattern.web.plaintext(result.description))
-        toWrite_toks = word_tokenize(toWrite.lower())
-        to_write_stem = [p.PorterStemmer().stem(word) for word in toWrite_toks]
-        if (any([term in to_write_stem for term in keep]) and
-                all([word not in to_write_stem for word in ignore])):
-            if website == 'nyt':
-                temp = pages_scrape.scrape(result.url, result.title)
-                entry_id = mongo_connection.add_entry(collection, temp,
-                                                      result.title, result.url,
-                                                      result.date, website)
-                if entry_id:
-                    log2 = 'Added entry from %s with id %s \n' % (result.url,
-                                                                  str(entry_id)
-                                                                  )
-                    log.write(log2)
-                else:
-                    log2 = 'Result from %s already in database \n' % (result.url)
-                    log.write(log2)
-            if website == 'bbc':
-                temp = pages_scrape.scrape(result.url, result.title)
-                entry_id = mongo_connection.add_entry(collection, temp,
-                                                      result.title, result.url,
-                                                      result.date, website)
-                if entry_id:
-                    log2 = 'Added entry from %s with id %s \n' % (result.url,
-                                                                  str(entry_id)
-                                                                  )
-                    log.write(log2)
-                else:
-                    log2 = 'Result from %s already in database \n' % (result.url)
-                    log.write(log2)
-            if website == 'reuters':
-                temp = pages_scrape.scrape(result.url, result.title)
-                entry_id = mongo_connection.add_entry(collection, temp,
-                                                      result.title, result.url,
-                                                      result.date, website)
-                if entry_id:
-                    log2 = 'Added entry from %s with id %s \n' % (result.url,
-                                                                  str(entry_id)
-                                                                  )
-                    log.write(log2)
-                else:
-                    log2 = 'Result from %s already in database \n' % (result.url)
-                    log.write(log2)
-            if website == 'ap':
-                temp = pages_scrape.scrape(result.url, result.title)
-                entry_id = mongo_connection.add_entry(collection, temp,
-                                                      result.title, result.url,
-                                                      result.date, website)
-                if entry_id:
-                    log2 = 'Added entry from %s with id %s \n' % (result.url,
-                                                                  str(entry_id)
-                                                                  )
-                    log.write(log2)
-                else:
-                    log2 = 'Result from %s already in database \n' % (result.url)
-                    log.write(log2)
-            if website == 'upi':
-                temp = pages_scrape.scrape(result.url, result.title)
-                entry_id = mongo_connection.add_entry(collection, temp,
-                                                      result.title, result.url,
-                                                      result.date, website)
-                if entry_id:
-                    log2 = 'Added entry from %s with id %s \n' % (result.url,
-                                                                  str(entry_id)
-                                                                  )
-                    log.write(log2)
-                else:
-                    log2 = 'Result from %s already in database \n' % (result.url)
-                    log.write(log2)
-            if website == 'xinhua':
-                page_url = result.url.encode('ascii')
-                page_url = page_url.replace('"', '')
-                temp = pages_scrape.scrape(page_url, result.title)
-                entry_id = mongo_connection.add_entry(collection, temp,
-                                                      result.title, result.url,
-                                                      result.date, website)
-                if entry_id:
-                    log2 = 'Added entry from %s with id %s \n' % (result.url,
-                                                                  str(entry_id)
-                                                                  )
-                    log.write(log2)
-                else:
-                    log2 = 'Result from %s already in database \n' % (result.url)
-                    log.write(log2)
-            if website == 'google':
-#                temp = (result.title + '\n' + result.date + '\n\n' +
-#                    pattern.web.plaintext(result.description))
-                temp = pages_scrape.scrape(result.url, result.title)
-                entry_id = mongo_connection.add_entry(collection, temp,
-                                                      result.title, result.url,
-                                                      result.date, website)
-                if entry_id:
-                    log2 = 'Added entry from %s with id %s \n' % (result.url,
-                                                                  str(entry_id)
-                                                                  )
-                    log.write(log2)
-                else:
-                    log2 = 'Result from %s already in database \n' % (result.url)
-                    log.write(log2)
+        if website == 'nyt':
+            text = pages_scrape.scrape(result.url, result.title)
+            head_sentences = sent_detector.tokenize(text.strip())[:4]
+            joined_sentences = ' '.join(head_sentences)
+            parsed = corenlp_parse.raw_parse(joined_sentences)
+            entry_id = mongo_connection.add_entry(collection, text, parsed,
+                                                    result.title, result.url,
+                                                    result.date, website)
+            if entry_id:
+                log2 = 'Added entry from %s with id %s \n' % (result.url,
+                                                                str(entry_id)
+                                                                )
+                log.write(log2)
+            else:
+                log2 = 'Result from %s already in database \n' % (result.url)
+                log.write(log2)
+        if website == 'bbc':
+            text = pages_scrape.scrape(result.url, result.title)
+            head_sentences = sent_detector.tokenize(text.strip())[:4]
+            joined_sentences = ' '.join(head_sentences)
+            parsed = corenlp_parse.raw_parse(joined_sentences)
+            entry_id = mongo_connection.add_entry(collection, text, parsed,
+                                                    result.title, result.url,
+                                                    result.date, website)
+            if entry_id:
+                log2 = 'Added entry from %s with id %s \n' % (result.url,
+                                                                str(entry_id)
+                                                                )
+                log.write(log2)
+            else:
+                log2 = 'Result from %s already in database \n' % (result.url)
+                log.write(log2)
+        if website == 'reuters':
+            text = pages_scrape.scrape(result.url, result.title)
+            head_sentences = sent_detector.tokenize(text.strip())[:4]
+            joined_sentences = ' '.join(head_sentences)
+            parsed = corenlp_parse.raw_parse(joined_sentences)
+            entry_id = mongo_connection.add_entry(collection, text, parsed,
+                                                    result.title, result.url,
+                                                    result.date, website)
+            if entry_id:
+                log2 = 'Added entry from %s with id %s \n' % (result.url,
+                                                                str(entry_id)
+                                                                )
+                log.write(log2)
+            else:
+                log2 = 'Result from %s already in database \n' % (result.url)
+                log.write(log2)
+        if website == 'ap':
+            text = pages_scrape.scrape(result.url, result.title)
+            head_sentences = sent_detector.tokenize(text.strip())[:4]
+            joined_sentences = ' '.join(head_sentences)
+            parsed = corenlp_parse.raw_parse(joined_sentences)
+            entry_id = mongo_connection.add_entry(collection, text, parsed,
+                                                    result.title, result.url,
+                                                    result.date, website)
+            if entry_id:
+                log2 = 'Added entry from %s with id %s \n' % (result.url,
+                                                                str(entry_id)
+                                                                )
+                log.write(log2)
+            else:
+                log2 = 'Result from %s already in database \n' % (result.url)
+                log.write(log2)
+        if website == 'upi':
+            text = pages_scrape.scrape(result.url, result.title)
+            head_sentences = sent_detector.tokenize(text.strip())[:4]
+            joined_sentences = ' '.join(head_sentences)
+            parsed = corenlp_parse.raw_parse(joined_sentences)
+            entry_id = mongo_connection.add_entry(collection, text, parsed,
+                                                    result.title, result.url,
+                                                    result.date, website)
+            if entry_id:
+                log2 = 'Added entry from %s with id %s \n' % (result.url,
+                                                                str(entry_id)
+                                                                )
+                log.write(log2)
+            else:
+                log2 = 'Result from %s already in database \n' % (result.url)
+                log.write(log2)
+        if website == 'xinhua':
+            page_url = result.url.encode('ascii')
+            page_url = page_url.replace('"', '')
+            text = pages_scrape.scrape(page_url, result.title)
+            head_sentences = sent_detector.tokenize(text.strip())[:4]
+            joined_sentences = ' '.join(head_sentences)
+            parsed = corenlp_parse.raw_parse(joined_sentences)
+            entry_id = mongo_connection.add_entry(collection, text, parsed,
+                                                    result.title, result.url,
+                                                    result.date, website)
+            if entry_id:
+                log2 = 'Added entry from %s with id %s \n' % (result.url,
+                                                                str(entry_id)
+                                                                )
+                log.write(log2)
+            else:
+                log2 = 'Result from %s already in database \n' % (result.url)
+                log.write(log2)
+        if website == 'google':
+            text = pages_scrape.scrape(result.url, result.title)
+            head_sentences = sent_detector.tokenize(text.strip())[:4]
+            joined_sentences = ' '.join(head_sentences)
+            parsed = corenlp_parse.raw_parse(joined_sentences)
+            entry_id = mongo_connection.add_entry(collection, text, parsed,
+                                                    result.title, result.url,
+                                                    result.date, website)
+            if entry_id:
+                log2 = 'Added entry from %s with id %s \n' % (result.url,
+                                                                str(entry_id)
+                                                                )
+                log.write(log2)
+            else:
+                log2 = 'Result from %s already in database \n' % (result.url)
+                log.write(log2)
     interupt = '+' * 70
     log3 = '%s\nScrape %s once at %s!\n%s\n' % (interupt, website,
                                                 datetime.datetime.now(),
                                                 interupt)
     log.write(log3)
     log.close()
-
-#def parallel_func(siteList, database, n_cores = -1):
-#    """
-#    Takes the scrape_func defined above and runs it in parallel.
-#
-#    Inputs
-#    ------
-#
-#    siteList : Dictionary of sites to be scraped with the website name as the
-#    key and address as the value. Dict.
-#
-#    n_cores : Number of cores to use. -1 indicates all available. Integer.
-#    """
-#    Parallel(n_jobs=n_cores)(delayed(scrape_func)(siteList[website], website,
-#        database) for website in siteList)
 
 
 def call_scrape_func(siteList):
